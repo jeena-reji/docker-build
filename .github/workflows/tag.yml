@@ -3,9 +3,8 @@ name: ios-mcn-ran-build
 on:
   push:
     tags:
-      # Listen for valid tags (e.g., v0.0.1.rc1-dist, v0.0.1.rc1-uni)
-      - 'v*.*.*.rc*-dist'
-      - 'v*.*.*.rc*-uni'
+      - 'v[0-9]+\.[0-9]+\.[0-9]+'
+      - 'v[0-9]+\.[0-9]+\.[0-9]+\.rc[0-9]+'
 
 env:
   REGISTRY: ghcr.io
@@ -27,49 +26,16 @@ jobs:
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
 
-    set-version-info:
+  m4-base:
     needs: authcheck
-    name: Set Version Info
-    runs-on: ubuntu-latest
-    outputs:
-      DOCKER_IMAGE_TAG: ${{ steps.setvars.outputs.DOCKER_IMAGE_TAG }}
-      RAN_TYPE_SUFFIX: ${{ steps.setvars.outputs.RAN_TYPE_SUFFIX }}
-    steps:
-      - name: Extract Version Info
-        id: setvars
-        run: |
-          # Correct extraction of tag name
-          FULL_TAG_NAME="${GITHUB_REF#refs/tags/}"
-          echo "Processing tag: $FULL_TAG_NAME"
-
-          # Validate correct tag format
-          if [[ ! "$FULL_TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.rc[0-9]+)?-(dist|uni)$ ]]; then
-            echo "::error::Tag format incorrect: '$FULL_TAG_NAME'. Expected format: vX.X.X.rcX-dist or vX.X.X.rcX-uni"
-            exit 1
-          fi
-
-          # Extract base tag by removing -dist or -uni suffix
-          DOCKER_IMAGE_TAG="${FULL_TAG_NAME%-dist}"
-          DOCKER_IMAGE_TAG="${DOCKER_IMAGE_TAG%-uni}"
-          echo "Extracted DOCKER_IMAGE_TAG: $DOCKER_IMAGE_TAG"
-
-          # Determine suffix for RAN type
-          if [[ "$FULL_TAG_NAME" == *-dist ]]; then
-            RAN_TYPE_SUFFIX="-dist"
-          elif [[ "$FULL_TAG_NAME" == *-uni ]]; then
-            RAN_TYPE_SUFFIX="-uni"
-          fi
-
-          echo "DOCKER_IMAGE_TAG=$DOCKER_IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "RAN_TYPE_SUFFIX=$RAN_TYPE_SUFFIX" >> $GITHUB_OUTPUT
-
-
-  build-and-push:
-    needs: set-version-info
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [m4-base, m4-build, m4-gnb, m4-cuup, m4-nr-ue]
+        variant: [dist, uni]
+    name: m4-base-${{ matrix.variant }}
+    outputs:
+      BASE_TAG: ${{ steps.setvars.outputs.BASE_TAG }}
+      SUFFIX: ${{ steps.setvars.outputs.SUFFIX }}
     steps:
       - uses: actions/checkout@v3
 
@@ -80,9 +46,143 @@ jobs:
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Build & Push Docker Image
+      - name: Set Version Info
+        id: setvars
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/${{ matrix.component }}${{ needs.set-version-info.outputs.RAN_TYPE_SUFFIX }}:${{ needs.set-version-info.outputs.DOCKER_IMAGE_TAG }}"
-          echo "Building and pushing: $IMAGE"
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          BASE_TAG="$TAG_NAME"
+          SUFFIX="-${{ matrix.variant }}"
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_ENV
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_OUTPUT
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_OUTPUT
+
+      - name: Build & Push Base Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-base${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
+
+  m4-build:
+    needs: m4-base
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [dist, uni]
+    name: m4-build-${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Set Version Info
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          BASE_TAG="$TAG_NAME"
+          SUFFIX="-${{ matrix.variant }}"
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_ENV
+
+      - name: Build & Push Build Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-build${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
+
+  m4-gnb:
+    needs: m4-build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [dist, uni]
+    name: m4-gnb-${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Set Version Info
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          BASE_TAG="$TAG_NAME"
+          SUFFIX="-${{ matrix.variant }}"
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_ENV
+
+      - name: Build & Push gNB Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-gnb${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
+
+  m4-cuup:
+    needs: m4-build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [dist, uni]
+    name: m4-cuup-${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Set Version Info
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          BASE_TAG="$TAG_NAME"
+          SUFFIX="-${{ matrix.variant }}"
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_ENV
+
+      - name: Build & Push CU-UP Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-cuup${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
+
+  m4-nr-ue:
+    needs: m4-build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [dist, uni]
+    name: m4-nr-ue-${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Set Version Info
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          BASE_TAG="$TAG_NAME"
+          SUFFIX="-${{ matrix.variant }}"
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_ENV
+
+      - name: Build & Push NR-UE Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${SUFFIX}:${BASE_TAG}
           docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
           docker push "$IMAGE"
