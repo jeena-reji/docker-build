@@ -12,8 +12,8 @@ env:
 
 jobs:
 
-  m4-authcheck:
-    name: m4-authcheck
+  authcheck:
+    name: authcheck
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,7 +27,7 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
 
   m4-base:
-    needs: m4-authcheck
+    needs: authcheck
     name: m4-base
     runs-on: ubuntu-latest
     outputs:
