@@ -12,8 +12,8 @@ env:
 
 jobs:
 
-  authcheck:
-    name: Authenticate to GHCR
+  m4-authcheck:
+    name: m4-authcheck
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,8 +27,8 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
 
   m4-base:
-    needs: authcheck
-    name: Build Base Image
+    needs: m4-authcheck
+    name: m4-base
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -50,7 +50,7 @@ jobs:
 
   m4-build:
     needs: m4-base
-    name: Build Toolchain
+    name: m4-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -64,7 +64,7 @@ jobs:
 
   m4-gnb:
     needs: m4-build
-    name: Build gNB
+    name: m4-gnb
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -76,7 +76,7 @@ jobs:
 
   m4-cuup:
     needs: m4-build
-    name: Build CU-UP
+    name: m4-cuup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -88,7 +88,7 @@ jobs:
 
   m4-nr-ue:
     needs: m4-build
-    name: Build NR-UE
+    name: m4-nr-ue
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
