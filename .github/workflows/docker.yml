@@ -30,6 +30,9 @@ jobs:
     needs: m4-authcheck
     name: m4-base
     runs-on: ubuntu-latest
+    outputs:
+      BASE_TAG: ${{ steps.setvars.outputs.BASE_TAG }}
+      SUFFIX: ${{ steps.setvars.outputs.SUFFIX }}
     steps:
       - uses: actions/checkout@v3
 
@@ -41,13 +44,20 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
 
       - name: Set Version Info
+        id: setvars
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           BASE_TAG="${TAG_NAME%.dist}"
           BASE_TAG="${BASE_TAG%.uni}"
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          if [[ "$TAG_NAME" == *.uni ]]; then
+            SUFFIX="-uni"
+          else
+            SUFFIX=""
+          fi
           echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
-          [[ "$TAG_NAME" == *.uni ]] && echo "SUFFIX=-uni" >> $GITHUB_ENV || echo "SUFFIX=" >> $GITHUB_ENV
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_ENV
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_OUTPUT
+          echo "SUFFIX=$SUFFIX" >> $GITHUB_OUTPUT
 
       - name: Build & Push Base Image
         run: |
@@ -69,13 +79,12 @@ jobs:
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Use Version Info
-        run: echo "Using $BASE_TAG$SUFFIX"
       - name: Build & Push Build Image
         run: |
-          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-build${SUFFIX}:${BASE_TAG}
-          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
-          docker push "$IMAGE"
+
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-build${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
+          docker build -t "$IMAGE" -f docker/Dockerfile.build.ubuntu23.iosmcn .
+
 
   m4-gnb:
     needs: m4-build
@@ -93,9 +102,10 @@ jobs:
 
       - name: Build & Push gNB Image
         run: |
-          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-gnb${SUFFIX}:${BASE_TAG}
-          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
-          docker push "$IMAGE"
+
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-gnb${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
+          docker build -t "$IMAGE" -f docker/Dockerfile.gNB.ubuntu23.iosmcn .
+
 
   m4-cuup:
     needs: m4-build
@@ -113,9 +123,9 @@ jobs:
 
       - name: Build & Push CU-UP Image
         run: |
-          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-cuup${SUFFIX}:${BASE_TAG}
-          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
-          docker push "$IMAGE"
+
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-cuup${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
+          docker build -t "$IMAGE" -f docker/Dockerfile.nr-cuup.ubuntu23.iosmcn .
 
   m4-nr-ue:
     needs: m4-build
@@ -133,6 +143,7 @@ jobs:
 
       - name: Build & Push NR-UE Image
         run: |
-          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${SUFFIX}:${BASE_TAG}
-          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
-          docker push "$IMAGE"
+
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
+          docker build -t "$IMAGE" -f docker/Dockerfile.nrUE.ubuntu23.iosmcn .
+
