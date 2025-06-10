@@ -33,6 +33,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Set Version Info
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
@@ -54,6 +61,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Use Version Info
         run: echo "Using $BASE_TAG$SUFFIX"
       - name: Build & Push Build Image
@@ -68,6 +83,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Build & Push gNB Image
         run: |
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-gnb${SUFFIX}:${BASE_TAG}
@@ -80,6 +103,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Build & Push CU-UP Image
         run: |
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-cuup${SUFFIX}:${BASE_TAG}
@@ -92,6 +123,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Build & Push NR-UE Image
         run: |
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${SUFFIX}:${BASE_TAG}
