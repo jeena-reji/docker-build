@@ -62,7 +62,7 @@ jobs:
       - name: Build & Push Base Image
         run: |
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-base${SUFFIX}:${BASE_TAG}
-          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.iosmcn .
+          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
           docker push "$IMAGE"
 
   m4-build:
@@ -81,9 +81,10 @@ jobs:
 
       - name: Build & Push Build Image
         run: |
+
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-build${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.build.ubuntu23.iosmcn .
-          docker push "$IMAGE"
+
 
   m4-gnb:
     needs: m4-build
@@ -101,9 +102,10 @@ jobs:
 
       - name: Build & Push gNB Image
         run: |
+
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-gnb${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.gNB.ubuntu23.iosmcn .
-          docker push "$IMAGE"
+
 
   m4-cuup:
     needs: m4-build
@@ -121,9 +123,9 @@ jobs:
 
       - name: Build & Push CU-UP Image
         run: |
+
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-cuup${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.nr-cuup.ubuntu23.iosmcn .
-          docker push "$IMAGE"
 
   m4-nr-ue:
     needs: m4-build
@@ -141,6 +143,7 @@ jobs:
 
       - name: Build & Push NR-UE Image
         run: |
+
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.nrUE.ubuntu23.iosmcn .
-          docker push "$IMAGE"
+
