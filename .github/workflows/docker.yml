@@ -84,10 +84,11 @@ jobs:
 
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-build${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
 
 
   m4-gnb:
-    needs: m4-build
+    needs: [m4-base, m4-build] 
     name: m4-gnb
     runs-on: ubuntu-latest
     steps:
@@ -105,10 +106,11 @@ jobs:
 
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-gnb${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
 
 
   m4-cuup:
-    needs: m4-build
+    needs: [m4-base, m4-build]
     name: m4-cuup
     runs-on: ubuntu-latest
     steps:
@@ -126,9 +128,10 @@ jobs:
 
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-cuup${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
 
   m4-nr-ue:
-    needs: m4-build
+    needs: [m4-base, m4-build]
     name: m4-nr-ue
     runs-on: ubuntu-latest
     steps:
@@ -146,4 +149,5 @@ jobs:
 
           IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${{ needs.m4-base.outputs.SUFFIX }}:${{ needs.m4-base.outputs.BASE_TAG }}
           docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
+          docker push "$IMAGE"
 
