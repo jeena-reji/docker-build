@@ -54,7 +54,7 @@ jobs:
 
       - name: Build and Push base image
         run: |
-          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-base${SUFFIX}:${VERSION} ./base
+          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-base${SUFFIX}:${VERSION} 
           docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-base${SUFFIX}:${VERSION}
 
   n5-build:
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build and Push build image
         run: |
-          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-build${SUFFIX}:${VERSION} ./build
+          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-build${SUFFIX}:${VERSION} 
           docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-build${SUFFIX}:${VERSION}
 
   n5-gnb:
@@ -108,7 +108,7 @@ jobs:
 
       - name: Build and Push gnb image
         run: |
-          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-gnb${SUFFIX}:${VERSION} ./gnb
+          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-gnb${SUFFIX}:${VERSION} 
           docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-gnb${SUFFIX}:${VERSION}
 
   n5-cuup:
@@ -135,7 +135,7 @@ jobs:
 
       - name: Build and Push cuup image
         run: |
-          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-cuup${SUFFIX}:${VERSION} ./cuup
+          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-cuup${SUFFIX}:${VERSION} 
           docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-cuup${SUFFIX}:${VERSION}
 
   n5-nr-ue:
@@ -162,5 +162,5 @@ jobs:
 
       - name: Build and Push nr-ue image
         run: |
-          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-nr-ue${SUFFIX}:${VERSION} ./nr-ue
+          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-nr-ue${SUFFIX}:${VERSION} 
           docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-nr-ue${SUFFIX}:${VERSION}
