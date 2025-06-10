@@ -1,0 +1,91 @@
+name: ios-mcn-ran-build
+
+on: 
+  push:
+    tags:
+      -  'v*.*.*.dist'
+      - 'v*.*.*.uni'  
+
+jobs:
+  authcheck:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ghcr.io
+      DOCKER_REGISTRY: ghcr.io/
+      DOCKER_REPOSITORY: ${{ github.repository_owner }}/
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to ghcr
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT }}
+
+  build:
+    runs-on: ubuntu-latest
+    needs: authcheck
+    env:
+      REGISTRY: ghcr.io
+      DOCKER_REPOSITORY: ${{ github.repository_owner }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Extract tag and suffix
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          # Extract base version (e.g., v1.0.0 from v1.0.0.dist)
+          BASE_TAG="${TAG_NAME%.dist}"
+          BASE_TAG="${BASE_TAG%.uni}"
+          echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
+
+          # Determine if suffix is .dist or .uni
+          if [[ "$TAG_NAME" == *.uni ]]; then
+            echo "TAG_SUFFIX=uni" >> $GITHUB_ENV
+          elif [[ "$TAG_NAME" == *.dist ]]; then
+            echo "TAG_SUFFIX=dist" >> $GITHUB_ENV
+          else
+            echo " Invalid tag format. Use .dist or .uni suffix."
+            exit 1
+          fi
+
+      - name: Login to ghcr
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCR_PAT}}
+
+      - name: Build and push Docker images
+        run: |
+          # Decide image name suffix based on tag
+          if [[ "$TAG_SUFFIX" == "uni" ]]; then
+            SUFFIX="-uni"
+          else
+            SUFFIX=""
+          fi
+
+          COMPONENTS=("m4-base" "m4-build" "m4-gnb" "m4-cuup" "m4-nr-ue")
+          DOCKERFILES=(
+            "docker/Dockerfile.base.ubuntu23.iosmcn"
+            "docker/Dockerfile.build.ubuntu23.iosmcn"
+            "docker/Dockerfile.gNB.ubuntu23.iosmcn"
+            "docker/Dockerfile.nr-cuup.ubuntu23.iosmcn"
+            "docker/Dockerfile.nrUE.ubuntu23.iosmcn"
+          )
+
+          for i in "${!COMPONENTS[@]}"; do
+            NAME=${COMPONENTS[$i]}$SUFFIX
+            DOCKERFILE=${DOCKERFILES[$i]}
+            echo " Building $NAME with $DOCKERFILE"
+            docker build \
+              --build-arg DOCKER_REPOSITORY=${{ env.DOCKER_REPOSITORY }} \
+              --build-arg VERSION=$BASE_TAG \
+              -t ghcr.io/${{ env.DOCKER_REPOSITORY }}/$NAME:$BASE_TAG \
+              -f $DOCKERFILE .
+
+            docker push ghcr.io/${{ env.DOCKER_REPOSITORY }}/$NAME:$BASE_TAG
+          done
