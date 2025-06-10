@@ -3,22 +3,11 @@ name: ios-mcn-ran-build
 on:
   push:
     tags:
-      - 'v*.*.*'
-      - 'v*.*.*.rc*' # Catch tags like v0.0.1 and v0.0.1.rc1
-  
-  workflow_dispatch:
-    inputs:
-      ran_type:
-        description: 'RAN Type (dist or uni)'
-        required: true
-        type: choice
-        options:
-          - dist
-          - uni
-      tag_name:
-        description: 'Git Tag (e.g., v0.0.1 or v0.0.1.rc1)'
-        required: true
-        type: string
+      # Listen for the hidden tags (e.g., v0.0.1.rc1-dist, v0.0.1.rc1-uni)
+      - 'v*.*.*-dist'
+      - 'v*.*.*-uni'
+      - 'v*.*.*.rc*-dist'
+      - 'v*.*.*.rc*-uni'
 
 env:
   REGISTRY: ghcr.io
@@ -51,34 +40,29 @@ jobs:
       - name: Set Version Info
         id: setvars
         run: |
-          # Determine tag and RAN type based on trigger source
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            # If triggered by a tag push, the tag is GITHUB_REF_NAME
-            TAG_FROM_EVENT="${GITHUB_REF_NAME}"
-            # For tag pushes, we'll assume 'dist' as default or need another mechanism
-            # For simplicity, if pushing a tag, we'll default to 'dist' or fail if not specified
-            # A more robust solution might require a separate file/logic in the repo
-            echo "::error::When pushing a tag, the RAN type (dist/uni) cannot be determined from the tag name alone."
-            echo "::error::Please use 'workflow_dispatch' to specify 'ran_type' for tag builds."
-            exit 1
-          else # workflow_dispatch
-            TAG_FROM_EVENT="${{ github.event.inputs.tag_name }}"
-            RAN_TYPE_INPUT="${{ github.event.inputs.ran_type }}"
-          fi
+          # GITHUB_REF_NAME for a tag push is the tag name itself (e.g., v0.0.1.rc1-dist)
+          FULL_TAG_NAME="${GITHUB_REF_NAME}"
+          echo "Full tag name from event: $FULL_TAG_NAME"
 
-          # The DOCKER_IMAGE_TAG is directly the Git tag (e.g., v0.0.1.rc1)
-          DOCKER_IMAGE_TAG="$TAG_FROM_EVENT"
-          
-          # The RAN_TYPE_SUFFIX comes from the workflow_dispatch input
-          RAN_TYPE_SUFFIX="-$RAN_TYPE_INPUT" # e.g., -dist or -uni
+          # Extract DOCKER_IMAGE_TAG (e.g., v0.0.1.rc1)
+          # Remove -dist or -uni suffix
+          DOCKER_IMAGE_TAG="${FULL_TAG_NAME%-dist}"
+          DOCKER_IMAGE_TAG="${DOCKER_IMAGE_TAG%-uni}"
+          echo "Extracted DOCKER_IMAGE_TAG: $DOCKER_IMAGE_TAG"
+
+          # Determine RAN_TYPE_SUFFIX (e.g., -dist or -uni)
+          if [[ "$FULL_TAG_NAME" == *-dist ]]; then
+            RAN_TYPE_SUFFIX="-dist"
+          elif [[ "$FULL_TAG_NAME" == *-uni ]]; then
+            RAN_TYPE_SUFFIX="-uni"
+          else
+            echo "::error::Tag '$FULL_TAG_NAME' does not contain -dist or -uni suffix. Exiting."
+            exit 1 # Fail the workflow if the tag doesn't match expected pattern
+          fi
+          echo "Determined RAN_TYPE_SUFFIX: $RAN_TYPE_SUFFIX"
 
           echo "DOCKER_IMAGE_TAG=$DOCKER_IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "RAN_TYPE_SUFFIX=$RAN_TYPE_SUFFIX" >> $GITHUB_OUTPUT
-          echo "Discovered DOCKER_IMAGE_TAG: $DOCKER_IMAGE_TAG"
-          echo "Discovered RAN_TYPE_SUFFIX: $RAN_TYPE_SUFFIX"
-
-  # All other jobs (m4-base, m4-build, m4-gnb, m4-cuup, m4-nr-ue) remain the same
-  # as in the previous example, as they consume the outputs from set-version-info.
 
   m4-base:
     needs: set-version-info
@@ -96,10 +80,17 @@ jobs:
 
       - name: Build & Push Base Image
         run: |
+          # Construct the image name using the extracted DOCKER_IMAGE_TAG and RAN_TYPE_SUFFIX
           IMAGE="${{ env.REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/m4-base${{ needs.set-version-info.outputs.RAN_TYPE_SUFFIX }}:${{ needs.set-version-info.outputs.DOCKER_IMAGE_TAG }}"
           echo "Building and pushing $IMAGE"
           docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.m4cn .
           docker push "$IMAGE"
+
+  # Repeat the same pattern for m4-build, m4-gnb, m4-cuup, m4-nr-ue
+  # Ensure each of these jobs uses:
+  #   needs: set-version-info
+  #   And constructs the IMAGE variable like:
+  #   IMAGE="${{ env.REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/m4-yourcomponent${{ needs.set-version-info.outputs.RAN_TYPE_SUFFIX }}:${{ needs.set-version-info.outputs.DOCKER_IMAGE_TAG }}"
 
   m4-build:
     needs: set-version-info
@@ -107,14 +98,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
-
       - name: Build & Push Build Image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/m4-build${{ needs.set-version-info.outputs.RAN_TYPE_SUFFIX }}:${{ needs.set-version-info.outputs.DOCKER_IMAGE_TAG }}"
@@ -128,14 +117,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
-
       - name: Build & Push gNB Image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/m4-gnb${{ needs.set-version-info.outputs.RAN_TYPE_SUFFIX }}:${{ needs.set-version-info.outputs.DOCKER_IMAGE_TAG }}"
@@ -149,14 +136,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
-
       - name: Build & Push CU-UP Image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/m4-cuup${{ needs.set-version-info.outputs.RAN_TYPE_SUFFIX }}:${{ needs.set-version-info.outputs.DOCKER_IMAGE_TAG }}"
@@ -170,14 +155,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
-
       - name: Build & Push NR-UE Image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${{ needs.set-version-info.outputs.RAN_TYPE_SUFFIX }}:${{ needs.set-version-info.outputs.DOCKER_IMAGE_TAG }}"
