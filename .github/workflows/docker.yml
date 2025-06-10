@@ -1,91 +1,99 @@
 name: ios-mcn-ran-build
 
-on: 
+on:
   push:
     tags:
-      -  'v*.*.*.dist'
-      - 'v*.*.*.uni'  
+      - 'v*.*.*.dist'
+      - 'v*.*.*.uni'
+
+env:
+  REGISTRY: ghcr.io
+  DOCKER_REPOSITORY: ${{ github.repository_owner }}
 
 jobs:
-  authcheck:
-    runs-on: ubuntu-latest
-    env:
-      REGISTRY: ghcr.io
-      DOCKER_REGISTRY: ghcr.io/
-      DOCKER_REPOSITORY: ${{ github.repository_owner }}/
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Login to ghcr
+  authcheck:
+    name: Authenticate to GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.GHCRUSER }}
           password: ${{ secrets.GHCR_PAT }}
 
-  build:
-    runs-on: ubuntu-latest
+  m4-base:
     needs: authcheck
-    env:
-      REGISTRY: ghcr.io
-      DOCKER_REPOSITORY: ${{ github.repository_owner }}
+    name: Build Base Image
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Extract tag and suffix
+      - name: Set Version Info
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          # Extract base version (e.g., v1.0.0 from v1.0.0.dist)
           BASE_TAG="${TAG_NAME%.dist}"
           BASE_TAG="${BASE_TAG%.uni}"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "BASE_TAG=$BASE_TAG" >> $GITHUB_ENV
+          [[ "$TAG_NAME" == *.uni ]] && echo "SUFFIX=-uni" >> $GITHUB_ENV || echo "SUFFIX=" >> $GITHUB_ENV
 
-          # Determine if suffix is .dist or .uni
-          if [[ "$TAG_NAME" == *.uni ]]; then
-            echo "TAG_SUFFIX=uni" >> $GITHUB_ENV
-          elif [[ "$TAG_NAME" == *.dist ]]; then
-            echo "TAG_SUFFIX=dist" >> $GITHUB_ENV
-          else
-            echo " Invalid tag format. Use .dist or .uni suffix."
-            exit 1
-          fi
-
-      - name: Login to ghcr
-        uses: docker/login-action@v3.1.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.GHCRUSER }}
-          password: ${{ secrets.GHCR_PAT}}
-
-      - name: Build and push Docker images
+      - name: Build & Push Base Image
         run: |
-          # Decide image name suffix based on tag
-          if [[ "$TAG_SUFFIX" == "uni" ]]; then
-            SUFFIX="-uni"
-          else
-            SUFFIX=""
-          fi
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-base${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.base.ubuntu23.iosmcn .
+          docker push "$IMAGE"
 
-          COMPONENTS=("m4-base" "m4-build" "m4-gnb" "m4-cuup" "m4-nr-ue")
-          DOCKERFILES=(
-            "docker/Dockerfile.base.ubuntu23.iosmcn"
-            "docker/Dockerfile.build.ubuntu23.iosmcn"
-            "docker/Dockerfile.gNB.ubuntu23.iosmcn"
-            "docker/Dockerfile.nr-cuup.ubuntu23.iosmcn"
-            "docker/Dockerfile.nrUE.ubuntu23.iosmcn"
-          )
+  m4-build:
+    needs: m4-base
+    name: Build Toolchain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Version Info
+        run: echo "Using $BASE_TAG$SUFFIX"
+      - name: Build & Push Build Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-build${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.build.ubuntu23.iosmcn .
+          docker push "$IMAGE"
 
-          for i in "${!COMPONENTS[@]}"; do
-            NAME=${COMPONENTS[$i]}$SUFFIX
-            DOCKERFILE=${DOCKERFILES[$i]}
-            echo " Building $NAME with $DOCKERFILE"
-            docker build \
-              --build-arg DOCKER_REPOSITORY=${{ env.DOCKER_REPOSITORY }} \
-              --build-arg VERSION=$BASE_TAG \
-              -t ghcr.io/${{ env.DOCKER_REPOSITORY }}/$NAME:$BASE_TAG \
-              -f $DOCKERFILE .
+  m4-gnb:
+    needs: m4-build
+    name: Build gNB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build & Push gNB Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-gnb${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.gNB.ubuntu23.iosmcn .
+          docker push "$IMAGE"
 
-            docker push ghcr.io/${{ env.DOCKER_REPOSITORY }}/$NAME:$BASE_TAG
-          done
+  m4-cuup:
+    needs: m4-build
+    name: Build CU-UP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build & Push CU-UP Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-cuup${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.nr-cuup.ubuntu23.iosmcn .
+          docker push "$IMAGE"
+
+  m4-nr-ue:
+    needs: m4-build
+    name: Build NR-UE
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build & Push NR-UE Image
+        run: |
+          IMAGE=ghcr.io/${{ env.DOCKER_REPOSITORY }}/m4-nr-ue${SUFFIX}:${BASE_TAG}
+          docker build -t "$IMAGE" -f docker/Dockerfile.nrUE.ubuntu23.iosmcn .
+          docker push "$IMAGE"
