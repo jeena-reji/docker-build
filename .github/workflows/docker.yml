@@ -3,7 +3,8 @@ name: ios-mcn-ran-build
 on: 
   push:
     tags:
-      - 'v*'  # Triggers on version tags like v1.0.0.dist or v1.0.0.uni
+      -  'v*.*.*.dist'
+      - 'v*.*.*.uni'  
 
 jobs:
   authcheck:
@@ -47,7 +48,7 @@ jobs:
           elif [[ "$TAG_NAME" == *.dist ]]; then
             echo "TAG_SUFFIX=dist" >> $GITHUB_ENV
           else
-            echo "❌ Invalid tag format. Use .dist or .uni suffix."
+            echo " Invalid tag format. Use .dist or .uni suffix."
             exit 1
           fi
 
@@ -56,7 +57,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.GHCRUSER }}
-          password: ${{ secrets.GHCRPASS }}
+          password: ${{ secrets.GHCR_PAT}}
 
       - name: Build and push Docker images
         run: |
@@ -67,19 +68,19 @@ jobs:
             SUFFIX=""
           fi
 
-          COMPONENTS=("ran-base" "ran-build" "ios-mcn-gnb" "ios-mcn-cuup" "ios-mcn-nr-ue")
+          COMPONENTS=("m4-base" "m4-build" "m4-gnb" "m4-cuup" "m4-nr-ue")
           DOCKERFILES=(
-            "docker/Dockerfile.base.ubuntu22.iosmcn"
-            "docker/Dockerfile.build.ubuntu22.iosmcn"
-            "docker/Dockerfile.gNB.ubuntu22.iosmcn"
-            "docker/Dockerfile.nr-cuup.ubuntu22.iosmcn"
-            "docker/Dockerfile.nrUE.ubuntu22.iosmcn"
+            "docker/Dockerfile.base.ubuntu23.iosmcn"
+            "docker/Dockerfile.build.ubuntu23.iosmcn"
+            "docker/Dockerfile.gNB.ubuntu23.iosmcn"
+            "docker/Dockerfile.nr-cuup.ubuntu23.iosmcn"
+            "docker/Dockerfile.nrUE.ubuntu23.iosmcn"
           )
 
           for i in "${!COMPONENTS[@]}"; do
             NAME=${COMPONENTS[$i]}$SUFFIX
             DOCKERFILE=${DOCKERFILES[$i]}
-            echo "🔨 Building $NAME with $DOCKERFILE"
+            echo " Building $NAME with $DOCKERFILE"
             docker build \
               --build-arg DOCKER_REPOSITORY=${{ env.DOCKER_REPOSITORY }} \
               --build-arg VERSION=$BASE_TAG \
