@@ -54,8 +54,8 @@ jobs:
 
       - name: Build and Push base image
         run: |
-          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-base${SUFFIX}:${VERSION} .
-          docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-base${SUFFIX}:${VERSION}
+          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-base${SUFFIX}:${VERSION} .
+          docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-base${SUFFIX}:${VERSION}
 
   n5-build:
     needs: n5-base
@@ -81,8 +81,8 @@ jobs:
 
       - name: Build and Push build image
         run: |
-          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-build${SUFFIX}:${VERSION} .
-          docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/ran-build${SUFFIX}:${VERSION}
+          docker build -t $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-build${SUFFIX}:${VERSION} .
+          docker push $DOCKER_REGISTRY$DOCKER_REPOSITORY/n5-build${SUFFIX}:${VERSION}
 
   n5-gnb:
     needs: n5-build
