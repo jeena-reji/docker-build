@@ -9,7 +9,7 @@ on:
 env:
   REGISTRY: ghcr.io
   DOCKER_REGISTRY: ghcr.io/
-  DOCKER_REPOSITORY: jeena-reji/docker-build
+  DOCKER_REPOSITORY: jeena-reji
 
 jobs:
   authcheck:
